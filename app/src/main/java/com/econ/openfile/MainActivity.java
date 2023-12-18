@@ -19,6 +19,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -87,8 +89,8 @@ public class MainActivity extends AppCompatActivity {
     private void createFile(Uri pickerInitialUri){
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("application/txt");
-        intent.putExtra(Intent.EXTRA_TITLE,"invoice.txt");
+        intent.setType("application/json");
+        intent.putExtra(Intent.EXTRA_TITLE,"w_16.json");
         intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, pickerInitialUri);
         startActivityForResult(intent,CREATE_FILE_CODE);
     }
@@ -105,9 +107,18 @@ public class MainActivity extends AppCompatActivity {
 
     private void writeFile(){
         try {
+            //创建json对象
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("w_ch",16);
+            JSONObject ch_list = new JSONObject();
+            String[] channel_names = new String[]{"O2","O1","TP10","P6","PZ","T8","F8","P5","TP9","C4","CZ","C3","FZ","T7","F7","FPZ"};
+            for (int i = 0; i < channel_names.length; i++) {
+                ch_list.put(String.valueOf(i),channel_names[i]);
+            }
+            jsonObject.put("list",ch_list);
             OutputStream outputStream = getContentResolver().openOutputStream(wr_uri);
             BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(outputStream));
-            bufferedWriter.write("田想的自行车丢了");
+            bufferedWriter.write(jsonObject.toString());
             bufferedWriter.close();
             outputStream.close();
 
@@ -117,34 +128,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private String getFilePathFromUri(Uri uri) {
-        String filePath = null;
-        if (uri != null) {
-            if (ContentResolver.SCHEME_FILE.equals(uri.getScheme())) {
-                // 如果是 file:// 类型的 Uri，则直接获取文件路径
-                filePath = uri.getPath();
-            } else if (ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
-                // 如果是 content:// 类型的 Uri，则使用 ContentResolver 查询文件路径
-                Cursor cursor = null;
-                try {
-                    String[] projection = { MediaStore.MediaColumns.DATA };
-                    cursor = getContentResolver().query(uri, projection, null, null, null);
-                    if (cursor != null && cursor.moveToFirst()) {
-                        int columnIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA);
-                        filePath = cursor.getString(columnIndex);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    if (cursor != null) {
-                        cursor.close();
-                    }
-                }
-            }
-        }
-        return filePath;
+    public void openElectrodeActivity(View view){
+        Intent intent = new Intent(MainActivity.this,ElectrodeActivity.class);
+        startActivity(intent);
     }
-
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
@@ -182,8 +169,24 @@ public class MainActivity extends AppCompatActivity {
                     InputStream inputStream = getContentResolver().openInputStream(readUri);
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
                     String line = null;
+                    StringBuilder builder = new StringBuilder();
                     while ((line = bufferedReader.readLine()) != null){
                         Log.d("MainActivity", "onActivityResult: " + line);
+                        builder.append(line);
+                    }
+                    JSONObject jsonObject = new JSONObject(builder.toString());
+                    int channels = jsonObject.optInt("w_ch",0);
+                    JSONObject ch_list = jsonObject.optJSONObject("list");
+
+                    if (channels != 0){
+                        int childrenCount = ch_list.length();
+                        if (childrenCount == channels){
+                            String[] channel_names = new String[channels];
+                            for (int i = 0; i < channels; i++) {
+                                channel_names[i] = ch_list.optString(Integer.toString(i),null);
+                            }
+                            Log.d("MainActivity", "json数据解析完成!!");
+                        }
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
